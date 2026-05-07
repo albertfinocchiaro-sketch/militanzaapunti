@@ -201,14 +201,19 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 // Firebase helpers
+let _localSaving = false;
+
 function fbSave(data){
   const dot = document.getElementById('sync-dot');
   if(dot){dot.style.background='#FFA500';}
+  _localSaving = true;
   db.ref('gdl').set(data).then(()=>{
     if(dot){dot.style.background='#4CAF50';}
+    setTimeout(()=>{ _localSaving = false; }, 1000);
   }).catch(e=>{
     console.error('Firebase save error:',e);
     if(dot){dot.style.background='#E24B4A';}
+    _localSaving = false;
   });
 }
 function fbListen(callback){
@@ -323,14 +328,14 @@ let militanti = (function(){
     ['VOCCIO','LUIGI'],
     ['ZACCONE','GIUSEPPE']
   ];
-  const PRES={2:[4, 7, 9, 12, 14, 16, 17, 22, 26, 30, 34, 41, 43, 46, 55, 59],24:[4, 5, 10, 11, 14, 17, 18, 22, 25, 27, 30, 33, 46, 47, 52, 53, 55],25:[4, 6, 9, 11, 12, 14, 16, 17, 20, 21, 25, 26, 27, 30, 33, 34, 42, 46, 47, 48, 52, 53, 55],8:[4, 6, 7, 9, 11, 14, 16, 21, 22, 25, 26, 27, 30, 34, 47, 48, 51, 52],11:[4, 6, 9, 11, 14, 16, 17, 18, 20, 21, 25, 33, 34, 45, 46, 53, 55],13:[4, 9, 11, 12, 21, 22, 25, 26, 45, 46, 49, 53],14:[6, 9, 11, 12, 14, 16, 21, 22, 25, 26, 34, 42, 45, 46, 48, 53, 54, 55, 56],15:[4, 9, 11, 12, 13, 14, 16, 17, 20, 21, 22, 25, 26, 33, 34, 45, 46, 47, 48, 53, 55],16:[4, 6, 9, 11, 12, 14, 16, 17, 20, 21, 22, 23, 25, 26, 27, 33, 34, 46, 48, 53, 54, 55, 56],17:[4, 6, 11, 12, 13, 27, 33, 46, 48, 55]};
+  const PRES={2:[4, 7, 9, 12, 14, 16, 17, 22, 26, 30, 34, 41, 43, 46, 55, 59],24:[4, 5, 10, 11, 14, 17, 18, 22, 25, 27, 30, 33, 46, 47, 52, 53, 55],25:[4, 6, 9, 11, 12, 14, 16, 17, 20, 21, 25, 26, 27, 30, 33, 34, 42, 46, 47, 48, 52, 53, 55],8:[4, 6, 7, 9, 11, 14, 16, 21, 22, 25, 26, 27, 30, 34, 47, 48, 51, 52],9:[4, 9, 11, 12, 17, 25, 26, 27, 30, 33, 46, 48, 49, 51, 53, 55],11:[4, 6, 9, 11, 14, 16, 17, 18, 20, 21, 25, 33, 34, 45, 46, 53, 55],13:[4, 9, 11, 12, 21, 22, 25, 26, 45, 46, 49, 53],14:[6, 9, 11, 12, 14, 16, 21, 22, 25, 26, 34, 42, 45, 46, 48, 53, 54, 55, 56],15:[4, 9, 11, 12, 13, 14, 16, 17, 20, 21, 22, 25, 26, 33, 34, 45, 46, 47, 48, 53, 55],16:[4, 6, 9, 11, 12, 14, 16, 17, 20, 21, 22, 23, 25, 26, 27, 33, 34, 46, 48, 53, 54, 55, 56],17:[4, 6, 11, 12, 13, 27, 33, 46, 48, 55]};
   let id=0;
   const make=(arr,lista)=>arr.map(p=>{let s={};COMPETENZE.forEach(c=>{s[c.id]=0;});const pid=id++;const pre=Object.entries(PRES).filter(([,ids])=>ids.includes(pid)).map(([eid])=>parseInt(eid));return {id:pid,cognome:p[0],nome:p[1],lista,scores:s,presenze:pre,note:''};});
   return [...make(dl,LISTE[0]),...make(cg,LISTE[1])];
 })();
 
 
-const DATA_VERSION = 9;
+const DATA_VERSION = 12;
 
 function toArray(val){
   // Firebase stores arrays as objects {0:..., 1:...} — convert back
@@ -381,7 +386,7 @@ function loadData(){
       if(saved){ try{ applyData(JSON.parse(saved)); }catch(e){} }
       saveData();
     }
-    if(currentUser) render();
+    if(currentUser && !_localSaving) render();
   });
 }
 
@@ -675,18 +680,75 @@ function renderPresenze(el){
   presTab('lista',el.querySelector('.tab-inner.active'));
 }
 
+function showEventoDetail(eid){
+  const e = eventi.find(x=>x.id===eid);
+  if(!e) return;
+  const presenti = militanti.filter(m=>m.presenze.includes(eid))
+    .sort((a,b)=>a.cognome.localeCompare(b.cognome));
+  const assenti = militanti.filter(m=>!m.presenze.includes(eid))
+    .sort((a,b)=>a.cognome.localeCompare(b.cognome));
+  const el = document.getElementById('evento-detail');
+  if(!el) return;
+  el.style.display='block';
+  el.innerHTML=`
+    <div style="background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#C8191A">${e.data} — ${e.tipo}</div>
+          <div style="font-size:12px;color:#888;margin-top:2px">${e.luogo} &nbsp;|&nbsp; ${presenti.length} presenti su ${militanti.length}</div>
+        </div>
+        <button class="btn-sm" onclick="document.getElementById('evento-detail').style.display='none'">✕ Chiudi</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" class="panel-grid">
+        <div>
+          <p class="section-title" style="margin-bottom:10px;color:#27500A">✓ Presenti (${presenti.length})</p>
+          <table><thead><tr><th>#</th><th>Nominativo</th><th class="hide-mobile">Lista</th></tr></thead><tbody>
+          ${presenti.map((m,i)=>{
+            const lb=m.lista===LISTE[0]?'badge-dl':'badge-cg';
+            const ls=m.lista===LISTE[0]?'DL':'CG';
+            return `<tr>
+              <td style="color:#888;font-size:12px">${i+1}</td>
+              <td style="font-weight:500">${toTitle(m.cognome)} ${toTitle(m.nome)}</td>
+              <td class="hide-mobile"><span class="${lb}">${ls}</span></td>
+            </tr>`;
+          }).join('')}
+          </tbody></table>
+        </div>
+        <div>
+          <p class="section-title" style="margin-bottom:10px;color:#791F1F">✗ Assenti (${assenti.length})</p>
+          <table><thead><tr><th>#</th><th>Nominativo</th><th class="hide-mobile">Lista</th></tr></thead><tbody>
+          ${assenti.map((m,i)=>{
+            const lb=m.lista===LISTE[0]?'badge-dl':'badge-cg';
+            const ls=m.lista===LISTE[0]?'DL':'CG';
+            return `<tr>
+              <td style="color:#888;font-size:12px">${i+1}</td>
+              <td style="color:#999">${toTitle(m.cognome)} ${toTitle(m.nome)}</td>
+              <td class="hide-mobile"><span class="${lb}">${ls}</span></td>
+            </tr>`;
+          }).join('')}
+          </tbody></table>
+        </div>
+      </div>
+    </div>`;
+  // Scroll to detail
+  el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
 function presTab(t,btn){
   if(btn){document.querySelectorAll('.tab-inner').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
   const el=document.getElementById('presenze-body');
   if(!el)return;
   if(t==='lista'){
     el.innerHTML=eventi.length===0?'<p style="font-size:13px;color:#aaa">Nessun evento ancora.</p>':`
-    <table><thead><tr><th>Data</th><th>Tipo</th><th>Luogo</th><th>Presenti</th></tr></thead><tbody>
+    <p style="font-size:12px;color:#888;margin-bottom:10px">Clicca su un evento per vedere i presenti</p>
+    <table><thead><tr><th>Data</th><th>Tipo</th><th class="hide-mobile">Luogo</th><th>Presenti</th></tr></thead><tbody>
     ${eventi.map(e=>{
       const cnt=militanti.filter(m=>m.presenze.includes(e.id)).length;
-      return `<tr><td>${e.data}</td><td>${e.tipo}</td><td>${e.luogo}</td>
-        <td><span class="badge badge-blue">${cnt} / 64</span></td></tr>`;
-    }).join('')}</tbody></table>`;
+      return `<tr onclick="showEventoDetail(${e.id})" style="cursor:pointer">
+        <td>${e.data}</td><td>${e.tipo}</td><td class="hide-mobile">${e.luogo}</td>
+        <td><span class="badge badge-blue">${cnt} / ${militanti.length}</span></td></tr>`;
+    }).join('')}</tbody></table>
+    <div id="evento-detail" style="display:none;margin-top:20px"></div>`;
   } else if(t==='nuovo'){
     el.innerHTML=`
     <div class="card" style="max-width:440px">
@@ -737,6 +799,20 @@ function addEvento(){
 
 function renderRegMilitanti(){
   const eid=parseInt((document.getElementById('reg-evento')||{}).value||eventi[0]?.id);
+  _rebuildRegList(eid);
+}
+
+function togglePresReg(mid,eid){
+  if(currentRole!=='admin')return;
+  const m=militanti.find(x=>x.id===mid);
+  if(m.presenze.includes(eid)) m.presenze=m.presenze.filter(x=>x!==eid);
+  else m.presenze.push(eid);
+  saveData();
+  // Only rebuild the militanti list, don't re-render the whole view
+  _rebuildRegList(eid);
+}
+
+function _rebuildRegList(eid){
   const el=document.getElementById('reg-list');
   if(!el)return;
   const isAdmin=currentRole==='admin';
@@ -755,15 +831,6 @@ function renderRegMilitanti(){
   }).join('')}</tbody></table>`;
 }
 
-function togglePresReg(mid,eid){
-  if(currentRole!=='admin')return;
-  const m=militanti.find(x=>x.id===mid);
-  if(m.presenze.includes(eid)) m.presenze=m.presenze.filter(x=>x!==eid);
-  else m.presenze.push(eid);
-  saveData();
-  renderRegMilitanti();
-}
-
 function segnaAll(v){
   if(currentRole!=='admin')return;
   const eid=parseInt((document.getElementById('reg-evento')||{}).value||eventi[0]?.id);
@@ -772,7 +839,7 @@ function segnaAll(v){
     else if(!v) m.presenze=m.presenze.filter(x=>x!==eid);
   });
   saveData();
-  renderRegMilitanti();
+  _rebuildRegList(eid);
 }
 
 function renderAdmin(el){
