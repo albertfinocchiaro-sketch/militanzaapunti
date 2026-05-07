@@ -328,14 +328,14 @@ let militanti = (function(){
     ['VOCCIO','LUIGI'],
     ['ZACCONE','GIUSEPPE']
   ];
-  const PRES={2:[4, 7, 9, 12, 14, 16, 17, 22, 26, 30, 34, 41, 43, 46, 55, 59],24:[4, 5, 10, 11, 14, 17, 18, 22, 25, 27, 30, 33, 46, 47, 52, 53, 55],25:[4, 6, 9, 11, 12, 14, 16, 17, 20, 21, 25, 26, 27, 30, 33, 34, 42, 46, 47, 48, 52, 53, 55],8:[4, 6, 7, 9, 11, 14, 16, 21, 22, 25, 26, 27, 30, 34, 47, 48, 51, 52],9:[4, 9, 11, 12, 17, 25, 26, 27, 30, 33, 46, 48, 49, 51, 53, 55],11:[4, 6, 9, 11, 14, 16, 17, 18, 20, 21, 25, 33, 34, 45, 46, 53, 55],13:[4, 9, 11, 12, 21, 22, 25, 26, 45, 46, 49, 53],14:[6, 9, 11, 12, 14, 16, 21, 22, 25, 26, 34, 42, 45, 46, 48, 53, 54, 55, 56],15:[4, 9, 11, 12, 13, 14, 16, 17, 20, 21, 22, 25, 26, 33, 34, 45, 46, 47, 48, 53, 55],16:[4, 6, 9, 11, 12, 14, 16, 17, 20, 21, 22, 23, 25, 26, 27, 33, 34, 46, 48, 53, 54, 55, 56],17:[4, 6, 11, 12, 13, 27, 33, 46, 48, 55]};
+  const PRES={1:[9, 11, 17, 18, 22, 26, 30, 52, 53],2:[4, 7, 9, 12, 14, 16, 17, 22, 26, 30, 34, 41, 43, 46, 55, 59],3:[4, 9, 11, 14, 17, 18, 22, 26, 30, 47, 52, 53],4:[3, 4, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 25, 26, 27, 30, 33, 34, 41, 42, 47, 48, 53, 55, 56],5:[4, 9, 11, 14, 16, 17, 18, 22, 25, 27, 30, 33, 34, 42, 46, 47, 48, 52, 53, 55],6:[4, 11, 13, 17, 18, 22, 26, 48, 53, 55],8:[4, 6, 7, 9, 11, 14, 16, 21, 22, 25, 26, 27, 30, 34, 47, 48, 51, 52],9:[4, 9, 11, 12, 17, 25, 26, 27, 30, 33, 46, 48, 49, 51, 53, 55],11:[4, 6, 9, 11, 14, 16, 17, 18, 20, 21, 25, 33, 34, 45, 46, 53, 55],13:[4, 9, 11, 12, 21, 22, 25, 26, 45, 46, 49, 53],14:[6, 9, 11, 12, 14, 16, 21, 22, 25, 26, 34, 42, 45, 46, 48, 53, 54, 55, 56],15:[4, 9, 11, 12, 13, 14, 16, 17, 20, 21, 22, 25, 26, 33, 34, 45, 46, 47, 48, 53, 55],16:[4, 6, 9, 11, 12, 14, 16, 17, 20, 21, 22, 23, 25, 26, 27, 33, 34, 46, 48, 53, 54, 55, 56],17:[4, 6, 11, 12, 13, 27, 33, 46, 48, 55]};;
   let id=0;
   const make=(arr,lista)=>arr.map(p=>{let s={};COMPETENZE.forEach(c=>{s[c.id]=0;});const pid=id++;const pre=Object.entries(PRES).filter(([,ids])=>ids.includes(pid)).map(([eid])=>parseInt(eid));return {id:pid,cognome:p[0],nome:p[1],lista,scores:s,presenze:pre,note:''};});
   return [...make(dl,LISTE[0]),...make(cg,LISTE[1])];
 })();
 
 
-const DATA_VERSION = 13;
+const DATA_VERSION = 15;
 
 function toArray(val){
   // Firebase stores arrays as objects {0:..., 1:...} — convert back
@@ -680,6 +680,62 @@ function renderPresenze(el){
   presTab('lista',el.querySelector('.tab-inner.active'));
 }
 
+function editEvento(eid){
+  const e=eventi.find(x=>x.id===eid);
+  if(!e)return;
+  // Hide detail if open
+  const det=document.getElementById('evento-detail');
+  if(det) det.style.display='none';
+  const form=document.getElementById('evento-edit-form');
+  if(!form)return;
+  form.style.display='block';
+  form.innerHTML=`
+    <div class="card" style="max-width:560px;border:2px solid #C8191A">
+      <p class="section-title" style="margin-bottom:12px;color:#C8191A">Modifica evento</p>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Data (AAAA-MM-GG)</label>
+          <input type="text" id="edit-ev-data" value="${e.data}"></div>
+        <div class="form-group"><label class="form-label">Luogo</label>
+          <input type="text" id="edit-ev-luogo" value="${e.luogo}"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Tipo evento</label>
+        <input type="text" id="edit-ev-tipo" value="${e.tipo}"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-primary" onclick="saveEditEvento(${e.id})">Salva modifiche</button>
+        <button class="btn-sm" onclick="document.getElementById('evento-edit-form').style.display='none'">Annulla</button>
+      </div>
+      <div id="edit-ev-alert" style="display:none" class="alert"></div>
+    </div>`;
+  form.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function saveEditEvento(eid){
+  const e=eventi.find(x=>x.id===eid);
+  if(!e)return;
+  const data=(document.getElementById('edit-ev-data')||{}).value.trim();
+  const luogo=(document.getElementById('edit-ev-luogo')||{}).value.trim();
+  const tipo=(document.getElementById('edit-ev-tipo')||{}).value.trim();
+  const a=document.getElementById('edit-ev-alert');
+  if(!data||!luogo||!tipo){
+    a.style.display='block';a.className='alert alert-error';a.textContent='Compila tutti i campi.';return;
+  }
+  e.data=data; e.luogo=luogo; e.tipo=tipo;
+  saveData();
+  document.getElementById('evento-edit-form').style.display='none';
+  presTab('lista', document.querySelector('.tab-inner.active'));
+}
+
+function deleteEvento(eid){
+  const e=eventi.find(x=>x.id===eid);
+  if(!e)return;
+  if(confirm('Eliminare l\'evento "'+e.tipo+' — '+e.data+'"?\nLe presenze registrate per questo evento verranno rimosse da tutti i militanti.')){
+    eventi=eventi.filter(x=>x.id!==eid);
+    militanti.forEach(m=>{m.presenze=m.presenze.filter(p=>p!==eid);});
+    saveData();
+    presTab('lista', document.querySelector('.tab-inner.active'));
+  }
+}
+
 function showEventoDetail(eid){
   const e = eventi.find(x=>x.id===eid);
   if(!e) return;
@@ -739,14 +795,23 @@ function presTab(t,btn){
   const el=document.getElementById('presenze-body');
   if(!el)return;
   if(t==='lista'){
+    const isAdmin=currentRole==='admin';
     el.innerHTML=eventi.length===0?'<p style="font-size:13px;color:#aaa">Nessun evento ancora.</p>':`
     <p style="font-size:12px;color:#888;margin-bottom:10px">Clicca su un evento per vedere i presenti</p>
-    <table><thead><tr><th>Data</th><th>Tipo</th><th class="hide-mobile">Luogo</th><th>Presenti</th></tr></thead><tbody>
+    <div id="evento-edit-form" style="display:none;margin-bottom:16px"></div>
+    <table><thead><tr><th>Data</th><th>Tipo</th><th class="hide-mobile">Luogo</th><th>Presenti</th>${isAdmin?'<th>Azioni</th>':''}</tr></thead><tbody>
     ${eventi.map(e=>{
       const cnt=militanti.filter(m=>m.presenze.includes(e.id)).length;
-      return `<tr onclick="showEventoDetail(${e.id})" style="cursor:pointer">
-        <td>${e.data}</td><td>${e.tipo}</td><td class="hide-mobile">${e.luogo}</td>
-        <td><span class="badge badge-blue">${cnt} / ${militanti.length}</span></td></tr>`;
+      return `<tr>
+        <td onclick="showEventoDetail(${e.id})" style="cursor:pointer">${e.data}</td>
+        <td onclick="showEventoDetail(${e.id})" style="cursor:pointer">${e.tipo}</td>
+        <td class="hide-mobile" onclick="showEventoDetail(${e.id})" style="cursor:pointer">${e.luogo}</td>
+        <td onclick="showEventoDetail(${e.id})" style="cursor:pointer"><span class="badge badge-blue">${cnt} / ${militanti.length}</span></td>
+        ${isAdmin?`<td style="white-space:nowrap">
+          <button class="btn-sm" style="margin-right:4px" onclick="editEvento(${e.id})">✏️</button>
+          <button class="btn-sm" style="color:#a00;border-color:#f5c6c6" onclick="deleteEvento(${e.id})">🗑️</button>
+        </td>`:''}
+      </tr>`;
     }).join('')}</tbody></table>
     <div id="evento-detail" style="display:none;margin-top:20px"></div>`;
   } else if(t==='nuovo'){
