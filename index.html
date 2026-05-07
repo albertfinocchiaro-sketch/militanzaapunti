@@ -335,7 +335,7 @@ let militanti = (function(){
 })();
 
 
-const DATA_VERSION = 12;
+const DATA_VERSION = 13;
 
 function toArray(val){
   // Firebase stores arrays as objects {0:..., 1:...} — convert back
@@ -377,16 +377,16 @@ function applyData(d){
 
 function loadData(){
   fbListen(d=>{
-    if(d){
+    if(d && d.militanti){
+      // Firebase ha dati: usa SEMPRE quelli, ignora il file
       applyData(d);
       localStorage.setItem('gdl_data', JSON.stringify(d));
+      if(currentUser && !_localSaving) render();
     } else {
-      // Primo avvio: nessun dato su Firebase, usa defaults e salva
-      const saved = localStorage.getItem('gdl_data');
-      if(saved){ try{ applyData(JSON.parse(saved)); }catch(e){} }
+      // Firebase vuoto: primo avvio, carica dal file e salva su Firebase
       saveData();
+      if(currentUser) render();
     }
-    if(currentUser && !_localSaving) render();
   });
 }
 
